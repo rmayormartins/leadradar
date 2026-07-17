@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEADRADAR // SC : varredura de negócios sem site</title>
+<style>
+:root{
+  --bg:#060a10;
+  --panel:#0b1119;
+  --panel2:#0e1621;
+  --line:#1b2938;
+  --ink:#d8e4ee;
+  --dim:#7b8fa4;
+  --grn:#38e08e;
+  --grn-dim:rgba(56,224,142,.13);
+  --amb:#f2b04a;
+  --amb-dim:rgba(242,176,74,.13);
+  --blu:#5aa9e6;
+  --blu-dim:rgba(90,169,230,.12);
+  --red:#ff6262;
+  --mono:ui-monospace,"Cascadia Code","SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:13px}
+body{
+  min-height:100vh;
+  background-image:
+    radial-gradient(1100px 600px at 70% -10%, rgba(56,224,142,.05), transparent 60%),
+    linear-gradient(rgba(27,41,56,.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27,41,56,.28) 1px, transparent 1px);
+  background-size:auto, 36px 36px, 36px 36px;
+}
+a{color:var(--blu);text-decoration:none}
+a:hover{text-decoration:underline}
+button{font-family:var(--mono);cursor:pointer}
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{outline:2px solid var(--grn);outline-offset:1px}
+
+/* ===== barra superior ===== */
+header{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 18px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(14,22,33,.95), rgba(11,17,25,.95));
+  position:sticky;top:0;z-index:5;
+}
+.radar{position:relative;width:40px;height:40px;border-radius:50%;flex:none;
+  border:1px solid rgba(56,224,142,.55);
+  background:radial-gradient(circle, rgba(56,224,142,.12), transparent 65%);
+  overflow:hidden;}
+.radar::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:repeating-radial-gradient(circle at center, transparent 0 8px, rgba(56,224,142,.16) 8px 9px);}
+.radar::after{content:"";position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(56,224,142,.16)}
+.radar .sweep{position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(56,224,142,.7), rgba(56,224,142,.08) 75deg, transparent 90deg);
+  animation:spin 2.8s linear infinite;animation-play-state:paused;}
+body.scanning .radar .sweep{animation-play-state:running}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.radar .sweep{animation:none}}
+.brand h1{font-size:17px;letter-spacing:.16em;font-weight:700}
+.brand h1 span{color:var(--grn)}
+.brand p{font-size:10px;color:var(--dim);letter-spacing:.08em;margin-top:2px}
+.stats{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
+.stat{border:1px solid var(--line);background:var(--panel2);padding:6px 12px;min-width:86px}
+.stat b{display:block;font-size:16px;font-weight:700}
+.stat small{display:block;font-size:9px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
+.stat.sem b{color:var(--grn)}
+.stat.soc b{color:var(--amb)}
+#stStatus{font-size:10px;letter-spacing:.14em;color:var(--dim);display:flex;align-items:center;gap:6px}
+#stStatus::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dim)}
+body.scanning #stStatus{color:var(--grn)}
+body.scanning #stStatus::before{background:var(--grn);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.15}}
+
+/* ===== layout ===== */
+.app{display:grid;grid-template-columns:350px 1fr;gap:16px;padding:16px 18px;max-width:1500px;margin:0 auto}
+@media (max-width:980px){.app{grid-template-columns:1fr}}
+.panel{border:1px solid var(--line);background:var(--panel)}
+.panel h2{
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+  padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel2);
+  display:flex;justify-content:space-between;align-items:center
+}
+.panel .bd{padding:12px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+input[type=text],input[type=password],select,textarea{
+  width:100%;background:#080d14;border:1px solid var(--line);color:var(--ink);
+  font-family:var(--mono);font-size:12px;padding:8px 9px;
+}
+textarea{resize:vertical;min-height:96px;line-height:1.5}
+.hint{font-size:10px;color:var(--dim);margin-top:5px;line-height:1.5}
+
+/* cidades e nichos */
+.cidades label{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;cursor:pointer;color:var(--ink);text-transform:none;letter-spacing:0}
+.cidades input{accent-color:var(--grn)}
+.nichos{display:flex;flex-wrap:wrap;gap:5px}
+.nicho{
+  border:1px solid var(--line);background:transparent;color:var(--dim);
+  font-size:11px;padding:4px 8px;
+}
+.nicho:hover{border-color:var(--dim)}
+.nicho.on{border-color:var(--grn);color:var(--grn);background:var(--grn-dim)}
+
+.acoes{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.btn{
+  border:1px solid var(--line);background:var(--panel2);color:var(--ink);
+  padding:10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+}
+.btn:hover:not(:disabled){border-color:var(--dim)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.go{border-color:var(--grn);color:var(--grn);background:var(--grn-dim);font-weight:700}
+.btn.stop{border-color:var(--red);color:var(--red)}
+#estim{font-size:10px;color:var(--dim);text-align:center;margin-top:8px;line-height:1.5}
+
+/* instrucoes */
+details.instr{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+details.instr summary{cursor:pointer;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--blu)}
+details.instr ol{margin:8px 0 0 16px;display:flex;flex-direction:column;gap:6px}
+details.instr li, details.instr p{font-size:11px;color:var(--dim);line-height:1.55}
+details.instr b{color:var(--ink)}
+
+/* ===== console ===== */
+#console{
+  height:130px;overflow-y:auto;padding:8px 12px;background:#070b11;
+  font-size:11px;line-height:1.6;
+}
+#console .lg{white-space:pre-wrap;word-break:break-word}
+#console .lg .t{color:#41546b;margin-right:6px}
+#console .ok{color:var(--grn)}
+#console .warn{color:var(--amb)}
+#console .err{color:var(--red)}
+#console .info{color:var(--dim)}
+
+/* ===== filtros e tabela ===== */
+.ftop{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.fchip{border:1px solid var(--line);background:transparent;color:var(--dim);font-size:11px;padding:5px 10px}
+.fchip.on{border-color:var(--grn);color:var(--grn);background:var(--grn-dim)}
+#fBusca{flex:1;min-width:160px;width:auto}
+.twrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:820px}
+th{
+  text-align:left;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+  padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel2);white-space:nowrap
+}
+td{padding:9px 10px;border-bottom:1px solid rgba(27,41,56,.6);vertical-align:top;font-size:12px}
+tr:hover td{background:rgba(27,41,56,.25)}
+td .nm{font-weight:700}
+td .sub{display:block;color:var(--dim);font-size:10px;margin-top:3px;line-height:1.4}
+.badge{display:inline-block;font-size:9px;letter-spacing:.12em;padding:3px 7px;border:1px solid;white-space:nowrap}
+.b-sem{color:var(--grn);border-color:var(--grn);background:var(--grn-dim)}
+.b-soc{color:var(--amb);border-color:var(--amb);background:var(--amb-dim)}
+.b-com{color:var(--blu);border-color:var(--blu);background:var(--blu-dim)}
+.mini{
+  border:1px solid var(--line);background:transparent;color:var(--ink);
+  font-size:10px;letter-spacing:.08em;padding:4px 8px;margin:1px 2px 1px 0;display:inline-block
+}
+.mini:hover{border-color:var(--dim)}
+button.mini.wa{border-color:var(--grn);color:var(--grn)}
+.nota{white-space:nowrap}
+.nota .st{color:var(--amb)}
+.vazio td{color:var(--dim);text-align:center;padding:34px 10px;font-size:12px}
+footer{padding:14px 18px 26px;color:#41546b;font-size:10px;letter-spacing:.1em;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="radar" aria-hidden="true"><div class="sweep"></div></div>
+  <div class="brand">
+    <h1>LEADRADAR <span>//</span> SC</h1>
+    <p>varredura de negócios sem presença web · São José · Florianópolis · Itajaí · Balneário Camboriú</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="stReq">0</b><small>requisições</small></div>
+    <div class="stat"><b id="stTot">0</b><small>empresas</small></div>
+    <div class="stat sem"><b id="stSem">0</b><small>sem site</small></div>
+    <div class="stat soc"><b id="stSoc">0</b><small>só redes</small></div>
+    <div class="stat"><span id="stStatus">AGUARDANDO</span></div>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- ============ painel de parametros ============ -->
+  <div class="panel">
+    <h2>Parâmetros da varredura</h2>
+    <div class="bd">
+
+      <div class="field">
+        <label for="apiKey">Chave da Google Places API (New)</label>
+        <input type="password" id="apiKey" autocomplete="off" placeholder="AIza...">
+        <div class="hint">A chave roda só no seu navegador, direto contra a API do Google. Nada é enviado a outro servidor. Veja "como configurar" abaixo.</div>
+      </div>
+
+      <div class="field cidades">
+        <label>Cidades</label>
+        <label><input type="checkbox" class="cid" value="São José, SC" checked> São José</label>
+        <label><input type="checkbox" class="cid" value="Florianópolis, SC" checked> Florianópolis</label>
+        <label><input type="checkbox" class="cid" value="Itajaí, SC" checked> Itajaí</label>
+        <label><input type="checkbox" class="cid" value="Balneário Camboriú, SC" checked> Balneário Camboriú</label>
+        <input type="text" id="cidExtra" placeholder="outras cidades: Palhoça SC, Biguaçu SC" style="margin-top:6px">
+      </div>
+
+      <div class="field">
+        <label>Nichos (toque para selecionar)</label>
+        <div class="nichos" id="nichos"></div>
+        <input type="text" id="nichoExtra" placeholder="outros nichos, separados por vírgula" style="margin-top:8px">
+      </div>
+
+      <div class="field">
+        <label for="paginas">Profundidade por consulta</label>
+        <select id="paginas">
+          <option value="1">1 página (até 20 empresas)</option>
+          <option value="2">2 páginas (até 40 empresas)</option>
+          <option value="3" selected>3 páginas (até 60 empresas)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="tplMsg">Modelo da mensagem (use {nome} e {cidade})</label>
+        <textarea id="tplMsg">Olá! Falo com o responsável pelo(a) {nome}? Meu nome é Ramon, moro aqui na região e crio páginas profissionais na internet para negócios locais. Procurei o {nome} no Google e vi que ainda não tem um site próprio. Uma página bem feita ajuda a aparecer melhor nas buscas e passa mais confiança para novos clientes. Posso te mostrar um exemplo pronto, sem compromisso?</textarea>
+        <div class="hint">O botão WA de cada empresa abre o WhatsApp com esta mensagem já preenchida. Personalize antes de enviar: abordagem individual converte mais e evita bloqueio por spam.</div>
+      </div>
+
+      <div class="acoes">
+        <button class="btn go" id="btnStart">▶ Iniciar varredura</button>
+        <button class="btn stop" id="btnStop" disabled>■ Abortar</button>
+        <button class="btn" id="btnCsv">⇩ Exportar CSV (linhas visíveis)</button>
+        <button class="btn" id="btnClear">Limpar resultados</button>
+      </div>
+      <div id="estim"></div>
+
+      <details class="instr">
+        <summary>Como configurar (5 a 10 min)</summary>
+        <ol>
+          <li>Acesse <b>console.cloud.google.com</b>, crie um projeto e ative o faturamento (o Google exige cartão mesmo para uso dentro da faixa gratuita).</li>
+          <li>Em <b>APIs e serviços &gt; Biblioteca</b>, ative a <b>Places API (New)</b>. Atenção: é a versão "New", a antiga virou legada.</li>
+          <li>Em <b>Credenciais</b>, crie uma <b>chave de API</b>. Em restrições, escolha <b>Sites</b> e adicione <b>https://seuusuario.github.io/*</b> e, para testes locais, <b>http://localhost:8000/*</b>. Em restrições de API, marque apenas a Places API (New).</li>
+          <li>Publique este arquivo num repositório com GitHub Pages (pode renomear para index.html). Para testar local, rode <b>python -m http.server</b> na pasta e abra localhost:8000.</li>
+          <li>Cole a chave no campo acima e inicie a varredura.</li>
+        </ol>
+        <p style="margin-top:8px"><b>Cota:</b> cada requisição desta ferramenta usa o Text Search na categoria Enterprise (é ela que devolve telefone e site). A faixa gratuita atual é de cerca de 1.000 requisições por mês, e cada requisição traz até 20 empresas. O contador no topo mostra quanto você já gastou na sessão.</p>
+        <p><b>Importante:</b> nada fica salvo entre sessões. Exporte o CSV antes de fechar a página. Use os contatos para abordagens individuais e personalizadas, sem disparo em massa.</p>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- ============ resultados ============ -->
+  <div>
+    <div class="panel" style="margin-bottom:16px">
+      <h2>Console de operação</h2>
+      <div id="console"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Contatos detectados <span id="hCount"></span></h2>
+      <div class="ftop">
+        <button class="fchip on" data-f="todos">Todos</button>
+        <button class="fchip" data-f="sem">Sem site</button>
+        <button class="fchip" data-f="social">Só redes</button>
+        <button class="fchip" data-f="com">Tem site</button>
+        <input type="text" id="fBusca" placeholder="filtrar por nome, nicho, cidade...">
+      </div>
+      <div class="twrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Nicho / Cidade</th>
+              <th>Avaliação</th>
+              <th>Telefone</th>
+              <th>Presença web</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>LEADRADAR v1.0 · ferramenta pessoal de prospecção · dados: Google Places API</footer>
+
+<script>
+"use strict";
+
+/* ================== configuracao ================== */
+const NICHOS_PRESET = [
+  "barbearia","salão de beleza","estética facial","manicure","pizzaria","restaurante",
+  "hamburgueria","lanchonete","padaria","confeitaria","açaí","pet shop","clínica veterinária",
+  "dentista","fisioterapia","psicólogo","nutricionista","academia","crossfit","advogado",
+  "contabilidade","imobiliária","oficina mecânica","auto center","lava car","borracharia",
+  "vidraçaria","serralheria","marcenaria","eletricista","encanador","desentupidora",
+  "dedetizadora","ar condicionado","energia solar","buffet","fotógrafo","pousada",
+  "escola de idiomas","autoescola","ótica","floricultura"
+];
+const NICHOS_DEFAULT = ["barbearia","pizzaria","dentista","academia","oficina mecânica","estética facial"];
+
+const FIELD_MASK = "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri,places.businessStatus,nextPageToken";
+
+const SOCIAL_HOSTS = [
+  "instagram.com","facebook.com","fb.com","m.facebook.com","wa.me","whatsapp.com",
+  "api.whatsapp.com","linktr.ee","linktree.com","bio.link","beacons.ai","lnk.bio",
+  "taplink.cc","ifood.com.br","sites.google.com","t.me"
+];
+
+/* ================== estado ================== */
+const leads = new Map();      /* id -> registro */
+let scanning = false;
+let abortScan = false;
+let reqCount = 0;
+let useJsApi = false;         /* fallback via Maps JS API se o fetch direto falhar */
+let filtroAtivo = "todos";
+
+/* ================== utilidades ================== */
+const $ = (s) => document.querySelector(s);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+function semAcento(s){
+  return String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function hostDe(url){
+  try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ""); }
+  catch { return ""; }
+}
+function classifica(url){
+  if (!url) return "sem";
+  const h = hostDe(url);
+  if (SOCIAL_HOSTS.some((s) => h === s || h.endsWith("." + s))) return "social";
+  return "com";
+}
+function foneDigitos(f){
+  let d = String(f ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.startsWith("0")) d = d.slice(1);
+  if (!d.startsWith("55")) d = "55" + d;
+  return d;
+}
+function log(msg, cls){
+  const c = $("#console");
+  const t = new Date().toLocaleTimeString("pt-BR");
+  const div = document.createElement("div");
+  div.className = "lg " + (cls || "info");
+  div.innerHTML = '<span class="t">' + t + "</span>" + esc(msg);
+  c.prepend(div);
+  while (c.children.length > 250) c.lastChild.remove();
+}
+
+/* ================== chamadas a API ================== */
+async function buscaRest(key, textQuery, pageToken){
+  const body = { textQuery, languageCode: "pt-BR", regionCode: "BR", pageSize: 20 };
+  if (pageToken) body.pageToken = pageToken;
+  reqCount++; atualizaContadores();
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": key,
+      "X-Goog-FieldMask": FIELD_MASK
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    let det = "";
+    try { const j = await res.json(); det = j?.error?.message || ""; } catch {}
+    const e = new Error("HTTP " + res.status + (det ? ": " + det.slice(0, 220) : ""));
+    e.status = res.status;
+    throw e;
+  }
+  const data = await res.json();
+  const places = (data.places || []).map((p) => ({
+    id: p.id,
+    nome: p.displayName?.text || "(sem nome)",
+    endereco: p.formattedAddress || "",
+    fone: p.nationalPhoneNumber || "",
+    site: p.websiteUri || "",
+    nota: p.rating ?? null,
+    avals: p.userRatingCount ?? 0,
+    maps: p.googleMapsUri || "",
+    bizStatus: p.businessStatus || ""
+  }));
+  return { places, next: data.nextPageToken || null };
+}
+
+let jsApiCarregando = null;
+function carregaJsApi(key){
+  if (window.google && window.google.maps) return Promise.resolve();
+  if (jsApiCarregando) return jsApiCarregando;
+  jsApiCarregando = new Promise((ok, err) => {
+    const s = document.createElement("script");
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" + encodeURIComponent(key) +
+            "&v=weekly&loading=async&language=pt-BR&region=BR";
+    s.onload = ok;
+    s.onerror = () => err(new Error("falha ao carregar a Maps JS API"));
+    document.head.appendChild(s);
+  });
+  return jsApiCarregando;
+}
+async function buscaJs(textQuery){
+  const { Place } = await google.maps.importLibrary("places");
+  reqCount++; atualizaContadores();
+  const { places } = await Place.searchByText({
+    textQuery,
+    fields: ["id","displayName","formattedAddress","nationalPhoneNumber","websiteURI",
+             "rating","userRatingCount","googleMapsURI","businessStatus"],
+    language: "pt-BR",
+    region: "br",
+    maxResultCount: 20
+  });
+  const lista = (places || []).map((p) => ({
+    id: p.id,
+    nome: p.displayName || "(sem nome)",
+    endereco: p.formattedAddress || "",
+    fone: p.nationalPhoneNumber || "",
+    site: p.websiteURI || "",
+    nota: p.rating ?? null,
+    avals: p.userRatingCount ?? 0,
+    maps: p.googleMapsURI || "",
+    bizStatus: String(p.businessStatus || "")
+  }));
+  return { places: lista, next: null };
+}
+
+/* ================== varredura ================== */
+function combosSelecionados(){
+  const cidades = [...document.querySelectorAll(".cid:checked")].map((c) => c.value);
+  $("#cidExtra").value.split(",").map((s) => s.trim()).filter(Boolean).forEach((c) => cidades.push(c));
+  const nichos = [...document.querySelectorAll(".nicho.on")].map((b) => b.dataset.v);
+  $("#nichoExtra").value.split(",").map((s) => s.trim()).filter(Boolean).forEach((n) => nichos.push(n));
+  return { cidades, nichos };
+}
+
+function atualizaEstimativa(){
+  const { cidades, nichos } = combosSelecionados();
+  const consultas = cidades.length * nichos.length;
+  const pags = parseInt($("#paginas").value, 10);
+  $("#estim").textContent = consultas === 0
+    ? "selecione ao menos uma cidade e um nicho"
+    : consultas + " consultas (cidade × nicho) · até " + (consultas * pags) + " requisições nesta varredura";
+}
+
+async function varre(){
+  const key = $("#apiKey").value.trim();
+  if (!key) { log("informe a chave da API antes de iniciar", "err"); $("#apiKey").focus(); return; }
+  const { cidades, nichos } = combosSelecionados();
+  if (!cidades.length || !nichos.length) { log("selecione ao menos uma cidade e um nicho", "err"); return; }
+  const pags = parseInt($("#paginas").value, 10);
+
+  scanning = true; abortScan = false;
+  document.body.classList.add("scanning");
+  $("#btnStart").disabled = true;
+  $("#btnStop").disabled = false;
+  $("#stStatus").textContent = "EM VARREDURA";
+  log("varredura iniciada: " + cidades.length + " cidades × " + nichos.length + " nichos", "ok");
+
+  let combo = 0;
+  const totalCombos = cidades.length * nichos.length;
+
+  externo:
+  for (const cidade of cidades) {
+    for (const nicho of nichos) {
+      if (abortScan) break externo;
+      combo++;
+      const consulta = nicho + " em " + cidade;
+      log("[" + combo + "/" + totalCombos + "] " + consulta);
+      let token = null;
+      for (let pag = 1; pag <= pags; pag++) {
+        if (abortScan) break externo;
+        try {
+          const r = useJsApi ? await buscaJs(consulta) : await buscaRest(key, consulta, token);
+          const novos = registra(r.places, nicho, cidade);
+          renderiza();
+          log("  pág " + pag + ": +" + novos + " novas de " + r.places.length + " recebidas", novos ? "ok" : "info");
+          token = r.next;
+          if (!token) break;
+          await sleep(400);
+        } catch (e) {
+          if (e instanceof TypeError && !useJsApi) {
+            log("chamada direta bloqueada pelo navegador (CORS). Alternando para a Maps JS API...", "warn");
+            try {
+              await carregaJsApi(key);
+              useJsApi = true;
+              pag--;            /* repete a pagina via fallback */
+              continue;
+            } catch (e2) {
+              log("fallback falhou: " + e2.message, "err");
+              break externo;
+            }
+          }
+          if (e.status === 403) {
+            log("chave recusada (403): " + e.message, "err");
+            log("verifique se a Places API (New) está ativada, se o faturamento está ativo e se a restrição de site inclui este endereço", "warn");
+            break externo;
+          }
+          if (e.status === 429) {
+            log("limite de requisições atingido (429), pausando 3 s...", "warn");
+            await sleep(3000);
+            pag--;
+            continue;
+          }
+          log("erro na consulta: " + e.message, "err");
+          break;
+        }
+      }
+      await sleep(300);
+    }
+  }
+
+  scanning = false;
+  document.body.classList.remove("scanning");
+  $("#btnStart").disabled = false;
+  $("#btnStop").disabled = true;
+  $("#stStatus").textContent = abortScan ? "ABORTADA" : "CONCLUÍDA";
+  const c = contagens();
+  log("varredura " + (abortScan ? "abortada" : "concluída") + ": " + leads.size + " empresas, " +
+      c.sem + " sem site, " + c.social + " só em redes sociais", "ok");
+}
+
+function registra(places, nicho, cidade){
+  let novos = 0;
+  for (const p of places) {
+    if (p.bizStatus === "CLOSED_PERMANENTLY") continue;
+    if (leads.has(p.id)) continue;
+    leads.set(p.id, {
+      ...p,
+      nicho,
+      cidade: cidade.split(",")[0].trim(),
+      status: classifica(p.site),
+      dig: foneDigitos(p.fone)
+    });
+    novos++;
+  }
+  return novos;
+}
+
+/* ================== render ================== */
+function contagens(){
+  let sem = 0, social = 0, com = 0;
+  for (const l of leads.values()) {
+    if (l.status === "sem") sem++;
+    else if (l.status === "social") social++;
+    else com++;
+  }
+  return { sem, social, com };
+}
+
+function atualizaContadores(){
+  $("#stReq").textContent = reqCount;
+  $("#stTot").textContent = leads.size;
+  const c = contagens();
+  $("#stSem").textContent = c.sem;
+  $("#stSoc").textContent = c.social;
+}
+
+function filtrados(){
+  const busca = semAcento($("#fBusca").value.trim());
+  const ordem = { sem: 0, social: 1, com: 2 };
+  return [...leads.values()]
+    .filter((l) => filtroAtivo === "todos" || l.status === filtroAtivo)
+    .filter((l) => !busca || semAcento(l.nome + " " + l.nicho + " " + l.cidade + " " + l.endereco).includes(busca))
+    .sort((a, b) => (ordem[a.status] - ordem[b.status]) || ((b.avals || 0) - (a.avals || 0)));
+}
+
+const ROTULO = { sem: "SEM SITE", social: "SÓ REDES", com: "TEM SITE" };
+const CLASSE = { sem: "b-sem", social: "b-soc", com: "b-com" };
+
+function renderiza(){
+  atualizaContadores();
+  const lista = filtrados();
+  $("#hCount").textContent = lista.length ? lista.length + " na tela" : "";
+  const tb = $("#tbody");
+  if (!lista.length) {
+    tb.innerHTML = '<tr class="vazio"><td colspan="6">' +
+      (leads.size ? "nenhum contato passa pelo filtro atual" :
+       "nenhum contato ainda. Configure os parâmetros à esquerda e inicie a varredura.") +
+      "</td></tr>";
+    return;
+  }
+  tb.innerHTML = lista.map((l) => {
+    const nota = l.nota != null
+      ? '<span class="st">★</span> ' + l.nota.toFixed(1) + ' <span class="sub">' + (l.avals || 0) + " avaliações</span>"
+      : '<span class="sub">sem avaliações</span>';
+    const presenca = '<span class="badge ' + CLASSE[l.status] + '">' + ROTULO[l.status] + "</span>" +
+      (l.site ? '<span class="sub"><a href="' + esc(l.site) + '" target="_blank" rel="noopener">' + esc(hostDe(l.site)) + "</a></span>" : "");
+    const acoes =
+      (l.dig ? '<button class="mini wa" data-wa="' + esc(l.id) + '">WA ➤</button>' : "") +
+      (l.fone ? '<a class="mini" href="tel:+' + esc(l.dig) + '">ligar</a>' : "") +
+      (l.maps ? '<a class="mini" href="' + esc(l.maps) + '" target="_blank" rel="noopener">maps</a>' : "");
+    return "<tr>" +
+      '<td><span class="nm">' + esc(l.nome) + '</span><span class="sub">' + esc(l.endereco) + "</span></td>" +
+      "<td>" + esc(l.nicho) + '<span class="sub">' + esc(l.cidade) + "</span></td>" +
+      '<td class="nota">' + nota + "</td>" +
+      "<td>" + (l.fone ? esc(l.fone) : '<span class="sub">sem telefone</span>') + "</td>" +
+      "<td>" + presenca + "</td>" +
+      "<td>" + (acoes || '<span class="sub">-</span>') + "</td>" +
+      "</tr>";
+  }).join("");
+}
+
+/* ================== whatsapp e csv ================== */
+function abreWhats(id){
+  const l = leads.get(id);
+  if (!l || !l.dig) return;
+  const msg = $("#tplMsg").value
+    .replaceAll("{nome}", l.nome)
+    .replaceAll("{cidade}", l.cidade);
+  window.open("https://wa.me/" + l.dig + "?text=" + encodeURIComponent(msg), "_blank", "noopener");
+}
+
+function exportaCsv(){
+  const lista = filtrados();
+  if (!lista.length) { log("nada para exportar com o filtro atual", "warn"); return; }
+  const cab = ["Nome","Nicho","Cidade","Telefone","Nota","Avaliacoes","PresencaWeb","Site","Endereco","GoogleMaps","LinkWhatsApp"];
+  const q = (v) => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+  const linhas = [cab.join(";")];
+  for (const l of lista) {
+    linhas.push([
+      l.nome, l.nicho, l.cidade, l.fone, l.nota ?? "", l.avals ?? 0,
+      ROTULO[l.status], l.site, l.endereco, l.maps,
+      l.dig ? "https://wa.me/" + l.dig : ""
+    ].map(q).join(";"));
+  }
+  const blob = new Blob(["\ufeff" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  const d = new Date();
+  a.href = URL.createObjectURL(blob);
+  a.download = "leadradar_" + d.toISOString().slice(0, 10) + ".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  log(lista.length + " contatos exportados em CSV", "ok");
+}
+
+/* ================== inicializacao ================== */
+function init(){
+  const cont = $("#nichos");
+  for (const n of NICHOS_PRESET) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "nicho" + (NICHOS_DEFAULT.includes(n) ? " on" : "");
+    b.dataset.v = n;
+    b.textContent = n;
+    b.setAttribute("aria-pressed", b.classList.contains("on"));
+    b.addEventListener("click", () => {
+      b.classList.toggle("on");
+      b.setAttribute("aria-pressed", b.classList.contains("on"));
+      atualizaEstimativa();
+    });
+    cont.appendChild(b);
+  }
+
+  document.querySelectorAll(".cid").forEach((c) => c.addEventListener("change", atualizaEstimativa));
+  $("#cidExtra").addEventListener("input", atualizaEstimativa);
+  $("#nichoExtra").addEventListener("input", atualizaEstimativa);
+  $("#paginas").addEventListener("change", atualizaEstimativa);
+
+  $("#btnStart").addEventListener("click", varre);
+  $("#btnStop").addEventListener("click", () => { abortScan = true; log("abortando após a requisição atual...", "warn"); });
+  $("#btnCsv").addEventListener("click", exportaCsv);
+  $("#btnClear").addEventListener("click", () => {
+    leads.clear(); renderiza();
+    log("resultados limpos (o contador de requisições da sessão é mantido)", "info");
+  });
+
+  document.querySelectorAll(".fchip").forEach((f) => f.addEventListener("click", () => {
+    document.querySelectorAll(".fchip").forEach((x) => x.classList.remove("on"));
+    f.classList.add("on");
+    filtroAtivo = f.dataset.f;
+    renderiza();
+  }));
+  $("#fBusca").addEventListener("input", renderiza);
+
+  $("#tbody").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-wa]");
+    if (b) abreWhats(b.getAttribute("data-wa"));
+  });
+
+  atualizaEstimativa();
+  renderiza();
+  log("LEADRADAR pronto. Informe a chave da API e inicie a varredura.", "ok");
+  log("dica: o filtro SÓ REDES + muitas avaliações costuma ser o melhor lead: negócio movimentado vivendo só de Instagram.", "info");
+}
+init();
+</script>
+</body>
+</html>
