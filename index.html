@@ -219,7 +219,7 @@ footer{padding:14px 18px 26px;color:#41546b;font-size:10px;letter-spacing:.1em;t
       <div class="field">
         <label for="tplMsg">Modelo da mensagem (use {nome}, {cidade} e {link})</label>
         <textarea id="tplMsg">Olá! Falo com o responsável pelo(a) {nome}? Meu nome é Ramon da RM Pages Studio, moro aqui na região e crio páginas profissionais na internet para negócios locais. Procurei o {nome} no Google e vi que ainda não tem um site próprio. Uma página bem feita ajuda a aparecer melhor nas buscas e passa mais confiança para novos clientes. Posso te mostrar um exemplo pronto, sem compromisso? E se quiser saber mais visite {link}</textarea>
-        <div class="hint">O botão WA de cada empresa abre o WhatsApp com esta mensagem já preenchida. {link} vira automaticamente o modelo do nicho da empresa (barbearia, dentista ou mecânica) e, para os demais nichos, o portfólio geral. Personalize antes de enviar: abordagem individual converte mais e evita bloqueio por spam.</div>
+        <div class="hint">O botão WA de cada empresa abre o WhatsApp com esta mensagem já preenchida. {link} vira automaticamente o modelo do nicho da empresa (barbearia, dentista, mecânica, pet shop, advogado ou salão) e, para os demais nichos, o portfólio geral. Personalize antes de enviar: abordagem individual converte mais e evita bloqueio por spam.</div>
       </div>
 
       <div class="acoes">
@@ -605,12 +605,15 @@ function renderiza(){
 }
 
 /* ================== whatsapp e csv ================== */
-const PORTFOLIO = "https://rmayormartins.github.io/landingpages/";
+const PORTFOLIO = "https://rmayormartins.github.io/rmpagestudio/";
 function linkModelo(nicho){
   const n = semAcento(nicho);
-  if (/(barbear|barber|cabele)/.test(n)) return PORTFOLIO + "barbearia.html";
+  if (/(barbear|barber)/.test(n)) return PORTFOLIO + "barbearia.html";
   if (/(dentist|odont)/.test(n)) return PORTFOLIO + "dentista.html";
-  if (/(mecanic|oficina|auto center|auto eletr|borrach|lava car|lava rapido)/.test(n)) return PORTFOLIO + "mecanica.html";
+  if (/(mecanic|oficina|auto center|auto eletr|borrach|lava car|lava rapido|lava jato)/.test(n)) return PORTFOLIO + "mecanica.html";
+  if (/(pet|veterinar)/.test(n)) return PORTFOLIO + "petshop.html";
+  if (/(advog|advoc|juridic)/.test(n)) return PORTFOLIO + "advogado.html";
+  if (/(salao|cabele|manicure|beleza|estetica|sobrancelh|design de sobr|maquiag)/.test(n)) return PORTFOLIO + "salao.html";
   return PORTFOLIO;
 }
 function abreWhats(id){
